@@ -58,20 +58,20 @@ sleep_coach_backend/
 
 ## Usage
 
-Send a POST request to the `/sleep-data/` endpoint with JSON data matching the `SleepEntry` model.
+Send a POST request to the `/submit-sleep/` endpoint with JSON data matching the `SleepEntry` model.
 
 **Example using `curl`:**
 ```bash
-curl -X POST "http://127.0.0.1:8000/sleep-data/" \
+curl -X POST "http://127.0.0.1:8000/submit-sleep/" \
 -H "Content-Type: application/json" \
 -d '{
-  "user_id": "user_test",
-  "date": "2024-05-17T00:00:00",
-  "bedtime": "23:00:00",
-  "wakeup_time": "07:00:00",
-  "sleep_duration": 8.0,
-  "awakenings": 0,
-  "sleep_quality_rating": 5
+  "date": "2025-05-22",
+  "bedtime": "2025-05-21T23:15:00",
+  "waketime": "2025-05-22T06:30:00",
+  "duration_minutes": 435,
+  "rem_minutes": 85,
+  "deep_minutes": 65,
+  "core_minutes": 140
 }'
 ```
 
