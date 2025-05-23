@@ -95,16 +95,17 @@ Receives sleep data, analyzes it using local LLMs (Ollama), stores it in Postgre
 
 5.  **Configure Environment Variables**
     - Create a `.env` file in the project root directory (e.g., alongside this README).
+    - You can use the provided `.env.example` file as a template. Copy it to `.env` and fill in your actual values.
     - Add the following variables, replacing placeholders with your actual values:
       ```env
       DATABASE_URL="postgresql+asyncpg://YOUR_DB_USER:YOUR_DB_PASSWORD@YOUR_DB_HOST:YOUR_DB_PORT/YOUR_DB_NAME"
       OLLAMA_API_URL="http://localhost:11434/api/generate"
-      OLLAMA_ANALYZER_MODEL_NAME="tinyllama"  # Or your preferred model for analysis
-      OLLAMA_COACH_MODEL_NAME="llama3"      # Or your preferred model for coaching
+      OLLAMA_ANALYZER_MODEL_NAME="qwen2.5-coder:1.5b"  # Or your preferred model like tinyllama, bakllava
+      OLLAMA_COACH_MODEL_NAME="qwen2.5-coder:1.5b"      # Or your preferred model like llama3, bakllava
       ```
 
 6.  **Run Database Migrations**
-    - Navigate to the `sleep_coach_backend` directory:
+    - Navigate to the `sleep_coach_backend` directory (if you are in the project root):
       ```bash
       cd sleep_coach_backend
       ```
@@ -113,13 +114,13 @@ Receives sleep data, analyzes it using local LLMs (Ollama), stores it in Postgre
       alembic upgrade head
       ```
       (If you get an error about alembic command not found, ensure your virtual environment is active and dependencies are installed.)
-
-7.  **Set up Ollama and Download Models**
-    - Install Ollama from [ollama.ai](https://ollama.ai/).
-    - Download the LLMs specified in your `.env` file:
+    - Download the LLMs specified in your `.env` file (or your chosen models):
       ```bash
-      ollama pull tinyllama  # Or OLLAMA_ANALYZER_MODEL_NAME
-      ollama pull llama3     # Or OLLAMA_COACH_MODEL_NAME
+      ollama pull qwen2.5-coder:1.5b # Example, use your OLLAMA_ANALYZER_MODEL_NAME
+      ollama pull qwen2.5-coder:1.5b # Example, use your OLLAMA_COACH_MODEL_NAME 
+      # ollama pull tinyllama
+      # ollama pull llama3
+      # ollama pull bakllava 
       ```
     - Ensure Ollama is running.
 
@@ -128,7 +129,7 @@ Receives sleep data, analyzes it using local LLMs (Ollama), stores it in Postgre
 ## Run the application
 
 1.  **Start the FastAPI server**
-    From the project root directory:
+    From the project root directory (`may-vibes-15` or equivalent):
     ```bash
     uvicorn main:app --reload --app-dir sleep_coach_backend
     ```
@@ -140,14 +141,14 @@ Receives sleep data, analyzes it using local LLMs (Ollama), stores it in Postgre
     ```bash
     curl -X POST "http://127.0.0.1:8000/submit-sleep" \
     -H "Content-Type: application/json" \
-    -d '{ # Ensure to use actual valid data based on models/sleep_entry.py
-      "date": "2025-05-24",
-      "bedtime": "2025-05-23T23:00:00",
-      "waketime": "2025-05-24T07:00:00",
-      "duration_minutes": 480,
-      "rem_minutes": 100,
-      "deep_minutes": 70,
-      "core_minutes": 310
+    -d '{
+      "date": "2025-05-25",
+      "bedtime": "2025-05-25T01:00:00",
+      "waketime": "2025-05-25T05:00:00",
+      "duration_minutes": 240,
+      "rem_minutes": 30,
+      "deep_minutes": 20,
+      "core_minutes": 190
     }'
     ```
 
