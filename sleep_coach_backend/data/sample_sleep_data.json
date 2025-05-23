@@ -1,0 +1,20 @@
+[
+  {
+    "user_id": "user123",
+    "date": "2024-05-15T00:00:00",
+    "bedtime": "22:30:00",
+    "wakeup_time": "06:30:00",
+    "sleep_duration": 7.5,
+    "awakenings": 1,
+    "sleep_quality_rating": 4
+  },
+  {
+    "user_id": "user123",
+    "date": "2024-05-16T00:00:00",
+    "bedtime": "23:00:00",
+    "wakeup_time": "07:00:00",
+    "sleep_duration": 7.0,
+    "awakenings": 2,
+    "sleep_quality_rating": 3
+  }
+] 
