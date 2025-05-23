@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import declarative_base
 from dotenv import load_dotenv
 
-load_dotenv() # Load environment variables from .env file
+# Load environment variables from .env file at the project root
+# Assuming this file (database.py) is in sleep_coach_backend/db/
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 # Default to a local PostgreSQL DB if not set in .env
 # Example format: "postgresql+asyncpg://user:password@host:port/dbname"
