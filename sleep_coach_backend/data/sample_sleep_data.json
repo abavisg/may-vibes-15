@@ -1,20 +1,20 @@
 [
   {
-    "user_id": "user123",
-    "date": "2024-05-15T00:00:00",
-    "bedtime": "22:30:00",
-    "wakeup_time": "06:30:00",
-    "sleep_duration": 7.5,
-    "awakenings": 1,
-    "sleep_quality_rating": 4
+    "date": "2025-05-22",
+    "bedtime": "2025-05-21T23:15:00",
+    "waketime": "2025-05-22T06:30:00",
+    "duration_minutes": 435,
+    "rem_minutes": 85,
+    "deep_minutes": 65,
+    "core_minutes": 140
   },
   {
-    "user_id": "user123",
-    "date": "2024-05-16T00:00:00",
-    "bedtime": "23:00:00",
-    "wakeup_time": "07:00:00",
-    "sleep_duration": 7.0,
-    "awakenings": 2,
-    "sleep_quality_rating": 3
+    "date": "2025-05-23",
+    "bedtime": "2025-05-22T22:45:00",
+    "waketime": "2025-05-23T07:15:00",
+    "duration_minutes": 510,
+    "rem_minutes": 100,
+    "deep_minutes": 80,
+    "core_minutes": 200
   }
 ] 
