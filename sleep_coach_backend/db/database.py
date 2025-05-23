@@ -2,6 +2,7 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 from dotenv import load_dotenv
+from typing import AsyncGenerator
 
 # Load environment variables from .env file at the project root
 # Assuming this file (database.py) is in sleep_coach_backend/db/
@@ -25,7 +26,7 @@ AsyncSessionLocal = async_sessionmaker(
 Base = declarative_base()
 
 # Dependency to get DB session
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
