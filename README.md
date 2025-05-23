@@ -10,8 +10,8 @@ Receives sleep data, analyzes it using local LLMs (Ollama), stores it in Postgre
 
 - **Sleep Data Submission** – Accepts sleep data (date, bedtime, waketime, duration, REM, deep, core) via a POST request.
 - **Data Storage** – Stores submitted sleep data persistently in a PostgreSQL database using async SQLAlchemy and Alembic for migrations.
-- **LLM-Powered Sleep Analysis** – Uses a local LLM (e.g., TinyLlama via Ollama) to analyze sleep data and identify potential quality issues.
-- **LLM-Powered Coaching** – Uses a local LLM (e.g., Llama3 via Ollama) to generate personalized sleep improvement tips based on the analysis.
+- **LLM-Powered Sleep Analysis** – Uses a local LLM (e.g., `qwen2.5-coder:1.5b`, `tinyllama` via Ollama) to analyze sleep data and identify potential quality issues.
+- **LLM-Powered Coaching** – Uses a local LLM (e.g., `qwen2.5-coder:1.5b`, `llama3` via Ollama) to generate personalized sleep improvement tips based on the analysis.
 - **Modular Agent-Based Design** – Separates concerns into collector, analyzer, and coach agents.
 
 ---
@@ -37,8 +37,8 @@ Receives sleep data, analyzes it using local LLMs (Ollama), stores it in Postgre
     *   `db_models.py`: SQLAlchemy ORM model for database interaction.
 3.  **Agents (`agents/`)**:
     *   `SleepCollectorAgent`: Validates and stores sleep data in PostgreSQL.
-    *   `SleepAnalyzerAgent`: Sends sleep data to an LLM (e.g., TinyLlama) via `OllamaClient` to identify issues.
-    *   `CoachAgent`: Sends sleep data and identified issues to another LLM (e.g., Llama3) via `OllamaClient` for personalized tips.
+    *   `SleepAnalyzerAgent`: Sends sleep data to an LLM (e.g., `qwen2.5-coder:1.5b`, `tinyllama`) via `OllamaClient` to identify issues.
+    *   `CoachAgent`: Sends sleep data and identified issues to another LLM (e.g., `qwen2.5-coder:1.5b`, `llama3`) via `OllamaClient` for personalized tips.
 4.  **Ollama Client (`ollama_client.py`)**: A dedicated client to interact with the Ollama API (e.g., `http://localhost:11434/api/generate`).
 5.  **Database (`db/`)**:
     *   `database.py`: Configures the async database connection (SQLAlchemy) and provides session management.
