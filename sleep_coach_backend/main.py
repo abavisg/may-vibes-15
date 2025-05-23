@@ -1,13 +1,14 @@
 import httpx
 from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Annotated, List # Added List
+from typing import Dict, Any, Annotated, List
 
 from models.sleep_entry import SleepEntry
 from agents.sleep_collector import SleepCollectorAgent
 from agents.sleep_analyzer import SleepAnalyzerAgent
+from agents.coach_agent import CoachAgent
 from db.database import get_db
-from ollama_client import OllamaClient # Import the new client
+from ollama_client import OllamaClient
 
 app = FastAPI(title="Sleep Coach Backend")
 
@@ -36,23 +37,25 @@ async def submit_sleep_data_endpoint(
     ollama_client: Annotated[OllamaClient, Depends(get_ollama_client)]
 ) -> Dict[str, Any]:
     """
-    Receives sleep data, stores it, and analyzes it using SleepAnalyzerAgent with LLM.
+    Receives sleep data, stores it, analyzes it, and generates coaching suggestions.
     """
     # 1. Store sleep data
     collector_agent = SleepCollectorAgent(db_session=db)
-    # We might not need stored_sleep_data_orm directly if not used later in this function
-    await collector_agent.store_sleep_data(sleep_entry_pydantic) 
+    await collector_agent.store_sleep_data(sleep_entry_pydantic)
     
-    # 2. Analyze sleep data using LLM via SleepAnalyzerAgent
+    # 2. Analyze sleep data
     analyzer_agent = SleepAnalyzerAgent(ollama_client=ollama_client)
     analysis_issues: List[str] = await analyzer_agent.analyze_sleep_data_with_llm(sleep_entry_pydantic)
     
+    # 3. Generate coaching suggestions
+    coach_agent = CoachAgent(ollama_client=ollama_client)
+    coaching_suggestions: List[str] = await coach_agent.generate_coaching_tips(sleep_entry_pydantic, analysis_issues)
+    
     return {
-        "message": "Sleep data submitted and analyzed.",
+        "message": "Sleep data submitted, analyzed, and suggestions generated.",
         "submitted_data": sleep_entry_pydantic.model_dump(),
-        "analysis": analysis_issues, # This now contains the list of issues from the LLM
-        "suggestions": [] # Placeholder for CoachAgent suggestions
+        "analysis": analysis_issues,
+        "suggestions": coaching_suggestions
     }
 
-# Placeholder for CoachAgent integration
-# We will fill this in later. 
+# Final response structure is now complete as per system overview. 

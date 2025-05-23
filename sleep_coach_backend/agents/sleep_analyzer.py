@@ -7,35 +7,63 @@ from models.sleep_entry import SleepEntry
 from ollama_client import OllamaClient
 
 # Path for load_dotenv in agents is ../../.env for project root .env
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env')
+if not os.path.exists(dotenv_path):
+    # Fallback for cases where .env might be in the same directory as main.py (project root)
+    # or if agents are structured differently.
+    # This assumes main.py is in sleep_coach_backend/
+    dotenv_path_alt = os.path.join(os.path.dirname(__file__), '..', '.env')
+    if os.path.exists(dotenv_path_alt):
+        dotenv_path = dotenv_path_alt
+    else:
+        # If still not found, try the current directory of this file (agents/)
+        # though this is less likely for typical project structures.
+        dotenv_path_cwd = os.path.join(os.path.dirname(__file__), '.env')
+        if os.path.exists(dotenv_path_cwd):
+            dotenv_path = dotenv_path_cwd
+        else:
+            # Finally, try the parent of the current file's directory (sleep_coach_backend/)
+            dotenv_path_parent_of_agents = os.path.join(os.path.dirname(__file__), '..', '.env')
+            if os.path.exists(dotenv_path_parent_of_agents):
+                dotenv_path = dotenv_path_parent_of_agents
+            else:
+                print(f"Warning: .env file not found at primary path: {os.path.join(os.path.dirname(__file__), '..', '..', '.env')} or fallbacks.")
+                # Allow to proceed, assuming env vars might be set globally
+    load_dotenv(dotenv_path=dotenv_path if os.path.exists(dotenv_path) else None, override=True)
 
 class SleepAnalyzerAgent:
     def __init__(self, ollama_client: OllamaClient):
         self.ollama_client = ollama_client
-        self.analyzer_model_name = os.getenv("OLLAMA_ANALYZER_MODEL_NAME", "tinyllama")
+        self.model_name = os.getenv("OLLAMA_ANALYZER_MODEL_NAME", "tinyllama")
+        if ':' not in self.model_name:
+            self.model_name += ':latest'
+        print(f"SleepAnalyzerAgent initialized with model: {self.model_name}")
 
     async def _construct_analysis_prompt(self, sleep_entry: SleepEntry) -> str:
-        prompt = f"""You are a sleep analysis assistant.
-Based on the following sleep data, identify any potential sleep quality issues.
+        prompt = f"""You are a sleep data checker. Your task is to identify specific sleep quality issues from the provided data based on common thresholds and output ONLY a JSON array of strings listing those issues.
 
 Sleep Data:
-- Date: {sleep_entry.date.isoformat()}
-- Bedtime: {sleep_entry.bedtime.isoformat()}
-- Waketime: {sleep_entry.waketime.isoformat()}
 - Total Duration: {sleep_entry.duration_minutes} minutes
 - REM Sleep: {sleep_entry.rem_minutes} minutes
 - Deep Sleep: {sleep_entry.deep_minutes} minutes
-- Core Sleep: {sleep_entry.core_minutes} minutes
 
-Common thresholds for adult sleep are:
-- Total Duration: At least 420 minutes (7 hours).
-- REM Sleep: At least 90 minutes.
-- Deep Sleep: At least 60 minutes.
+Thresholds:
+- Issue "Short total sleep": if Total Duration is less than 420 minutes.
+- Issue "Low REM sleep": if REM Sleep is less than 90 minutes.
+- Issue "Low Deep sleep": if Deep Sleep is less than 60 minutes.
 
-List the identified issues strictly as a JSON array of strings. For example: ["Issue 1", "Issue 2"].
-If no significant issues are found based on these common thresholds, return an empty array [].
-Do not wrap the array in any other JSON object. The output should be the array itself.
-"""
+Based *only* on these rules and data, provide your response *strictly* as a JSON array of strings containing the exact issue descriptions if their conditions are met.
+For example, if total duration is 300 and REM is 70, output: ["Short total sleep", "Low REM sleep"]
+If only deep sleep is 50, output: ["Low Deep sleep"]
+If all values are above thresholds, output an empty array: []
+Do not add any other text, explanation, or JSON keys. Your entire response must be only the JSON array of issue strings.
+
+Data to analyze:
+Total Duration: {sleep_entry.duration_minutes}
+REM Sleep: {sleep_entry.rem_minutes}
+Deep Sleep: {sleep_entry.deep_minutes}
+
+Output JSON array:""" 
         return prompt
 
     async def analyze_sleep_data_with_llm(self, sleep_entry: SleepEntry) -> List[str]:
@@ -46,85 +74,79 @@ Do not wrap the array in any other JSON object. The output should be the array i
         """
         prompt = await self._construct_analysis_prompt(sleep_entry)
         
-        print(f"SleepAnalyzerAgent: Analyzing sleep data for {sleep_entry.date} with model {self.analyzer_model_name}.")
-        print(f"Prompt being sent:\n{prompt}")
+        print(f"SleepAnalyzerAgent: Analyzing sleep data for {sleep_entry.date} with model {self.model_name}.")
+        print(f"Prompt being sent to Analyzer LLM:\n{prompt}")
 
         try:
             response_data = await self.ollama_client.generate(
-                model_name=self.analyzer_model_name,
+                model_name=self.model_name,
                 prompt=prompt,
                 stream=False,
-                output_format="json"  # Request JSON output from Ollama
+                output_format="json"
             )
             
-            # The 'response' field from Ollama (when format="json") should contain a string 
-            # that is itself a JSON formatted list of strings.
             llm_output_str = response_data.get("response")
             if not llm_output_str:
-                print("Error: LLM response did not contain a 'response' field.")
-                return ["Error: LLM did not provide a response string."]
+                print("Error: Analyzer LLM response did not contain a 'response' field.")
+                return ["Error: Analyzer LLM did not provide a response string."]
 
-            print(f"LLM raw output string for issues: {llm_output_str}")
+            print(f"Analyzer LLM raw output string for issues: {llm_output_str}")
             
-            # Parse the LLM's string output (which should be a JSON array string)
             try:
-                # Attempt to parse the string as JSON. It might be a JSON object or directly a JSON array string.
                 parsed_llm_json: Any = json.loads(llm_output_str)
-
                 issues_list: List[str] = []
 
                 if isinstance(parsed_llm_json, list):
-                    # Ideal case: LLM returned a direct JSON array of strings
                     if all(isinstance(item, str) for item in parsed_llm_json):
                         issues_list = parsed_llm_json
                     else:
-                        print(f"Warning: LLM returned a list, but not all items are strings: {parsed_llm_json}")
-                        # Attempt to stringify non-string items or handle as error
-                        issues_list = [str(item) for item in parsed_llm_json] # Convert all to string as a fallback
+                        print(f"Warning: Analyzer LLM returned a list, but not all items are strings: {parsed_llm_json}")
+                        issues_list = [str(item) for item in parsed_llm_json]
                 elif isinstance(parsed_llm_json, dict):
-                    # Case: LLM returned a JSON object like {"slees": [["Issue 1"]], ...} or {"issues": [...]} 
-                    print(f"Info: LLM returned a JSON object. Attempting to extract issues list. Object: {parsed_llm_json}")
-                    # Try common keys, case-insensitive, and handle potential nesting
+                    print(f"Info: Analyzer LLM returned a JSON object. Will attempt to extract. Object: {parsed_llm_json}")
+                    # New logic: If the dict keys seem to be the issues themselves
+                    potential_issues_from_keys = list(parsed_llm_json.keys())
+                    if all(isinstance(key, str) for key in potential_issues_from_keys):
+                        # Check if these keys match the expected issue format (simple heuristic)
+                        # This is a simple check; more sophisticated validation could be added.
+                        # For now, we assume if keys are strings, they are the issues.
+                        issues_list = potential_issues_from_keys
+                        print(f"Extracted issues from JSON object keys: {issues_list}")
+                        if issues_list: # If we got issues from keys, prioritize this
+                            return issues_list
+
+                    # If LLM still wraps, try to find a list within common keys (less ideal for this new prompt)
                     found_key = None
                     for key in ["issues", "slees", "analysis", "results"]:
                         if key in parsed_llm_json:
                             found_key = key
                             break
                         elif key.lower() in (k.lower() for k in parsed_llm_json.keys()):
-                             # a bit more robust key finding
                             actual_key = next((k for k in parsed_llm_json.keys() if k.lower() == key.lower()), None)
                             if actual_key:
                                 found_key = actual_key
                                 break
-                    
                     if found_key:
                         potential_issues = parsed_llm_json[found_key]
                         if isinstance(potential_issues, list):
                             if potential_issues and isinstance(potential_issues[0], list) and all(isinstance(i,str) for i in potential_issues[0]):
-                                # Handles cases like [["Issue 1", "Issue 2"]]
                                 issues_list = potential_issues[0]
                             elif all(isinstance(item, str) for item in potential_issues):
-                                # Handles cases like ["Issue 1", "Issue 2"]
                                 issues_list = potential_issues
                             else:
-                                print(f"Warning: Found list for key '{found_key}', but items are not all strings or not a simple list of strings: {potential_issues}")
-                                issues_list = [str(item) for item in potential_issues if isinstance(potential_issues, list)] # fallback stringification
-                        else:
-                             print(f"Warning: Value for key '{found_key}' was not a list: {potential_issues}")
-                    else:
-                        print("Warning: LLM returned a JSON object, but no known issues key found.")
+                                issues_list = [str(item) for item in potential_issues if isinstance(potential_issues, list)]
                 else:
-                    print(f"Error: LLM output was neither a list nor a dict after JSON parsing. Output: {parsed_llm_json}")
-                    return ["Error: LLM output was not a recognized JSON structure (list or dict)."]
+                    print(f"Error: Analyzer LLM output was not a recognized JSON list/dict. Output: {parsed_llm_json}")
+                    return ["Error: Analyzer LLM output was not a recognized JSON structure."]
 
-                print(f"Extracted issues: {issues_list}")
+                print(f"Extracted issues by Analyzer LLM: {issues_list}")
                 return issues_list
 
             except json.JSONDecodeError as e:
-                print(f"Error: Failed to parse LLM's response string as JSON. Error: {e}. LLM String: {llm_output_str}")
-                return [f"Error: Could not parse LLM JSON output - {llm_output_str}"]
+                print(f"Error: Failed to parse Analyzer LLM's response string as JSON. Error: {e}. LLM String: {llm_output_str}")
+                return [f"Error: Could not parse Analyzer LLM JSON output - {llm_output_str}"]
 
         except Exception as e:
-            error_message = f"Sleep analysis failed due to an error: {str(e)}"
+            error_message = f"Sleep analysis by LLM failed: {str(e)}"
             print(error_message)
-            return [error_message] # Return the error message as an issue 
+            return [error_message] 
