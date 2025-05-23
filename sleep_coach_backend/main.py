@@ -1,7 +1,7 @@
 import httpx
 from fastapi import FastAPI, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, Any, Annotated # For response model and Annotated for Depends
+from typing import Dict, Any, Annotated, List # Added List
 
 from models.sleep_entry import SleepEntry
 from agents.sleep_collector import SleepCollectorAgent
@@ -36,23 +36,22 @@ async def submit_sleep_data_endpoint(
     ollama_client: Annotated[OllamaClient, Depends(get_ollama_client)]
 ) -> Dict[str, Any]:
     """
-    Receives sleep data, stores it, and tests Ollama connectivity via OllamaClient.
+    Receives sleep data, stores it, and analyzes it using SleepAnalyzerAgent with LLM.
     """
     # 1. Store sleep data
     collector_agent = SleepCollectorAgent(db_session=db)
-    stored_sleep_data_orm = await collector_agent.store_sleep_data(sleep_entry_pydantic)
+    # We might not need stored_sleep_data_orm directly if not used later in this function
+    await collector_agent.store_sleep_data(sleep_entry_pydantic) 
     
-    # 2. Test Ollama prompt via SleepAnalyzerAgent (which uses OllamaClient)
-    # The SleepAnalyzerAgent now expects an OllamaClient instance
+    # 2. Analyze sleep data using LLM via SleepAnalyzerAgent
     analyzer_agent = SleepAnalyzerAgent(ollama_client=ollama_client)
-    # Using analyze_sleep_data_with_llm which currently calls the test_ollama_prompt internally
-    ollama_test_result = await analyzer_agent.analyze_sleep_data_with_llm(sleep_entry_pydantic)
+    analysis_issues: List[str] = await analyzer_agent.analyze_sleep_data_with_llm(sleep_entry_pydantic)
     
     return {
-        "message": "Sleep data submitted and Ollama test via OllamaClient initiated.",
-        "submitted_data": sleep_entry_pydantic.model_dump(), # Use model_dump() for Pydantic v2
-        "ollama_test_status": ollama_test_result[0],
-        "ollama_test_response": ollama_test_result[1]
+        "message": "Sleep data submitted and analyzed.",
+        "submitted_data": sleep_entry_pydantic.model_dump(),
+        "analysis": analysis_issues, # This now contains the list of issues from the LLM
+        "suggestions": [] # Placeholder for CoachAgent suggestions
     }
 
 # Placeholder for CoachAgent integration
